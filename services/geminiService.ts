@@ -2,28 +2,29 @@ import { GoogleGenAI } from "@google/genai";
 import { Transaction } from '../types';
 
 export const analyzeDiscrepancy = async (
-  transaction: Transaction,
-  apiKey: string
+  transaction: Transaction
 ): Promise<string> => {
-  if (!apiKey) return "Clave API no configurada.";
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    // Initialize the client with the environment variable
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Based on the transaction details, suggest a reason for the discrepancy
+    // Prompt Engineering for Accounting Context
     const prompt = `
-      Actúa como un contador auditor experto. Analiza la siguiente transacción bancaria no conciliada y sugiere un posible motivo y el asiento contable de ajuste.
+      Actúa como un contador auditor experto en conciliaciones bancarias. Analiza la siguiente transacción del extracto bancario que NO aparece en los libros contables de la empresa. Sugiere la causa y el asiento de ajuste.
       
-      Transacción:
-      Fecha: ${transaction.date}
-      Descripción: ${transaction.description}
-      Monto: ${transaction.amount}
-      Tipo: ${transaction.type === 'DEBIT' ? 'Cargo (Salida)' : 'Abono (Entrada)'}
-      Fuente: ${transaction.source}
+      Detalles de la Transacción:
+      - Fecha: ${transaction.date}
+      - Descripción del Banco: "${transaction.description}"
+      - Referencia: ${transaction.reference}
+      - Monto: ${transaction.amount}
+      - Tipo: ${transaction.type === 'DEBIT' ? 'DEBIT (Cargo/Salida de dinero del banco)' : 'CREDIT (Abono/Entrada de dinero al banco)'}
 
-      Responde brevemente en español con:
-      1. Posible Causa (ej. Comisión bancaria, Cheque en tránsito, Error de dedo).
-      2. Acción Recomendada.
+      Responde estrictamente con este formato:
+      **Posible Causa:** [Causa breve, ej. Comisión bancaria, Intereses, Error]
+      **Acción Contable:** [Acción, ej. Registrar Gasto, Registrar Ingreso]
+      **Asiento Sugerido:** 
+      - Debe: [Nombre de Cuenta Sugerida]
+      - Haber: [Nombre de Cuenta Sugerida]
     `;
 
     const response = await ai.models.generateContent({
@@ -34,6 +35,6 @@ export const analyzeDiscrepancy = async (
     return response.text || "No se pudo generar un análisis.";
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "Error al conectar con el servicio de IA.";
+    return "Error al conectar con el servicio de IA. Verifique su API Key.";
   }
 };
